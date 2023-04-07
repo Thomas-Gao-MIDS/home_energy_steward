@@ -2,3 +2,4 @@ __pycache__/
 tmp
 ray_results
 output
+.DS_Store
