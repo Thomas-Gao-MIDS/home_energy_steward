@@ -12,6 +12,9 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 
 def main ():
+
+    n_iter = 200
+
     # init directory in which to save checkpoints
     chkpt_root = "tmp/exa"
     #shutil.rmtree(chkpt_root, ignore_errors=True, onerror=None)
@@ -28,17 +31,18 @@ def main ():
     register_env(select_env, lambda config: HEnv())
 
     # configure the environment and create agent
+    # entropy_regularization, ent_coef 0.01
     config = ppo.DEFAULT_CONFIG.copy()
     config["log_level"] = "WARN"
     config["rollout_fragment_length"] = 288
     config["train_batch_size"] = 288 * 16
-    config['lr_schedule'] = [[0, 3e-3],[150*288,1e-4], [200*288,5e-5]]
+    config['lr_schedule'] = [[0, 1e-3],[200*288,1e-4]]
+    config['entropy_coeff'] = 0.01
     config['batch_mode'] = "complete_episodes"
     agent = ppo.PPOTrainer(config, env=select_env)
 
     status = "{:2d} reward {:6.2f}"
     rewards = []
-    n_iter = 200
 
     # train a policy with RLlib using PPO
     for n in range(n_iter):

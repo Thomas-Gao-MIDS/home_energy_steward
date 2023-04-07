@@ -17,7 +17,7 @@ THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 class HEnv(gym.Env):
 
     def __init__(self,
-                 scen_id: str = "001"):
+                 scen_id: str = "002"):
         """
         self.observation_space, self.action_space
         """
@@ -51,6 +51,7 @@ class HEnv(gym.Env):
         act_high = np.array([1.0, 1.0], dtype=np.float32)
         self.action_space = gym.spaces.Box(low=act_low, high=act_high, dtype=np.float32)
 
+# commit code, implement reset to change scenario, entropy_coeff
         # observation space
         # for generalization, introduce weather, temperature, day
         self.obs_labels = ['grid_cost', 'pv_power', 'dev_power',
@@ -112,13 +113,16 @@ class HEnv(gym.Env):
         Performs transition step
         Return next observation, reward, done, additional info
         Issue: 
-            es_action always negative, learned not to charge
-            at inference, ev does not charge to full ~ generalization & randomization?
-        Ideas to try:
-            Rescaling
+            at training, es does not learn to charge from unused solar
+                seems difficult to learn. how to fix?
+                * try different algos
+            at inference, es & ev do not charge at all
+                * get in-sample results out using callback
+                why & how to fix?
+                * train multiple scenarios
+        Next Steps:
             Mult scenarios
             Baseline check es_initial charge & es_efficiency
-            test np_random working?
             
         """
         # Actions
@@ -185,18 +189,18 @@ class HEnv(gym.Env):
         # Compute reward
         reward = (-ecost)
         if self.simulation_step+1 == self.max_episode_steps:
-            reward -= 1 * self.ev_energy_required**2
-            #reward -= (0.05 * self.cum_engy_unused**2 + 0.2 * self.cum_engy_unused)
+            reward -= (1.0 * self.ev_energy_required**2)
+            #reward -= (0.1 * self.cum_engy_unused**2)
             #reward -= (0.05 * self.es_storage**2)
 
         # Compute done & next obs
         done = False
         if self.simulation_step+1 == self.max_episode_steps:
             done = True
-            #print("ecost:", round(self.cum_ecost), 
-            #      "| engy_unused (0):", round(self.cum_engy_unused),
-            #      "| ev_required (0):", round(self.ev_energy_required), 
-            #      "| es_storage (1)", round(self.es_storage))
+            print("ecost:", round(self.cum_ecost), 
+                  "| engy_unused (0):", round(self.cum_engy_unused),
+                  "| ev_required (0):", round(self.ev_energy_required), 
+                  "| es_storage (1)", round(self.es_storage))
         else:
             self.simulation_step += 1
             next_obs = self.get_obs()
@@ -224,7 +228,7 @@ if __name__ == "__main__":
     for _ in range(1):
         obs = henv.reset()
         while True:
-            action = [0.05, 0.0]
+            action = henv.action_space.sample()
             obs, r, done, _ = henv.step(action)
             if done:
                 break
