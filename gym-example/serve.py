@@ -11,6 +11,9 @@ import pandas as pd
 
 def main ():
  
+    model_iter = '100'
+    scen_id = '001'
+
     # start Ray -- add `local_mode=True` here for debugging
     ray.init(ignore_reinit_error=True, local_mode=True)
 
@@ -23,15 +26,13 @@ def main ():
     config["log_level"] = "WARN"
     agent = ppo.PPOTrainer(config, env=select_env)
 
-    print(os.getcwd())
-    print(os.listdir())
-    chkpt_file = 'tmp/exa/checkpoint_000100/checkpoint-100'
+    chkpt_file = 'tmp/exa/checkpoint_000'+model_iter+'/checkpoint-'+model_iter
 
     # apply the trained policy in a rollout
     agent.restore(chkpt_file)
-    env = gym.make(select_env)
+    env = gym.make(select_env, scen_id=scen_id)
 
-    state = env.reset()
+    state = env.reset(train=False)
     sum_reward = 0
     n_step = 288
 
@@ -46,8 +47,8 @@ def main ():
     grid_engy = []
     engy_consumption = []
     engy_supply = []
-    engy_excess = []
-    cum_engy_excess = []
+    engy_unused = []
+    cum_engy_unused = []
     grid_cost = []
     ecost = []
     cum_ecost = []
@@ -69,8 +70,8 @@ def main ():
         grid_engy.append(env.grid_engy)
         engy_consumption.append(env.engy_consumption)
         engy_supply.append(env.engy_supply)
-        engy_excess.append(env.engy_excess)
-        cum_engy_excess.append(env.cum_excess_engy)
+        engy_unused.append(env.engy_unused)
+        cum_engy_unused.append(env.cum_engy_unused)
         grid_cost.append(env.grid_costs[step])
         ecost.append(env.ecost)
         cum_ecost.append(env.cum_ecost)
@@ -87,13 +88,13 @@ def main ():
             pd.DataFrame(list(zip(timestamps, 
                                   es_action, ev_action,
                                   pv_engy, dev_engy, es_engy, ev_engy, grid_engy,
-                                  engy_consumption, engy_supply, engy_excess, cum_engy_excess,
+                                  engy_consumption, engy_supply, engy_unused, cum_engy_unused,
                                   grid_cost, ecost, cum_ecost,
                                   ev_energy_required, es_storage)),
                                   columns = ["timestamps", 
                                   "es_action", "ev_action",
                                   "pv_engy", "dev_engy", "es_engy", "ev_engy", "grid_engy",
-                                  "engy_consumption", "engy_supply", "engy_excess", "cum_engy_excess",
+                                  "engy_consumption", "engy_supply", "engy_unused", "cum_engy_unused",
                                   "grid_cost", "ecost", "cum_ecost",
                                   "ev_energy_required", "es_storage"])
             df.to_csv("output/validation.csv", index=False)

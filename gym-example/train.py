@@ -8,7 +8,8 @@ import os
 import ray
 import ray.rllib.agents.ppo as ppo
 import shutil
-
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_pdf import PdfPages
 
 def main ():
     # init directory in which to save checkpoints
@@ -28,12 +29,16 @@ def main ():
 
     # configure the environment and create agent
     config = ppo.DEFAULT_CONFIG.copy()
-    print(config)
     config["log_level"] = "WARN"
+    config["rollout_fragment_length"] = 288
+    config["train_batch_size"] = 288 * 16
+    config['lr_schedule'] = [[0, 3e-3],[150*288,1e-4], [200*288,5e-5]]
+    config['batch_mode'] = "complete_episodes"
     agent = ppo.PPOTrainer(config, env=select_env)
 
-    status = "{:2d} reward {:6.2f}/{:6.2f}/{:6.2f} len {:4.2f}"
-    n_iter = 100
+    status = "{:2d} reward {:6.2f}"
+    rewards = []
+    n_iter = 200
 
     # train a policy with RLlib using PPO
     for n in range(n_iter):
@@ -41,13 +46,11 @@ def main ():
 
         print(status.format(
                 n + 1,
-                result["episode_reward_min"],
-                result["episode_reward_mean"],
-                result["episode_reward_max"],
-                result["episode_len_mean"]
+                result["episode_reward_mean"]
                 ))
+        rewards.append(result["episode_reward_mean"])
         
-        if (n+1) % 50 == 0:
+        if (n+1) % 100 == 0:
             chkpt_file = agent.save(chkpt_root)
             print(chkpt_file)
 
@@ -55,6 +58,17 @@ def main ():
     policy = agent.get_policy()
     model = policy.model
     print(model.base_model.summary())
+
+    with PdfPages('output/rewards.pdf') as pdf:
+        plt.figure()
+
+        plt.plot(rewards)
+        plt.title('Rewards');
+        pdf.savefig(); plt.close()
+
+        plt.plot(rewards[50:])
+        plt.title('Rewards After 50 Iters');
+        pdf.savefig(); plt.close()
 
 if __name__ == "__main__":
     main()

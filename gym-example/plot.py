@@ -24,14 +24,12 @@ with PdfPages('output/charts.pdf') as pdf:
     str(round(max(df['cum_ecost']),2)));
   pdf.savefig(); plt.close()
 
-  # Energy
-  plt.plot(hours, df['pv_engy'], label='pv_energy')
-  plt.plot(hours, df['dev_engy'], ".", label='dev_engy')
-  plt.plot(hours, df['es_engy'], ".", label='es_engy')
-  plt.plot(hours, df['ev_engy'], ".", label='ev_engy')
-  plt.plot(hours, df['grid_engy'], ".", label='grid_engy')
+  # EV
+  plt.plot(hours, df['ev_action'], label='ev_action')
+  plt.plot(hours, df['ev_engy'], label='ev_engy')
+  plt.plot(hours, df['ev_energy_required'], label='ev_energy_required')
 
-  plt.legend(); plt.title('Energy');
+  plt.legend(); plt.title('EV');
   pdf.savefig(); plt.close()
 
   # ES
@@ -42,5 +40,25 @@ with PdfPages('output/charts.pdf') as pdf:
   plt.legend(); plt.title('ES');
   pdf.savefig(); plt.close()
 
-  # EV
-  
+  # Energy
+  plt.plot(hours, df['pv_engy'], label='pv_energy')
+  plt.plot(hours, df['dev_engy'], label='dev_engy')
+  plt.plot(hours, df['es_engy'], ".", label='es_engy')
+  plt.plot(hours, df['ev_engy'], ".", label='ev_engy')
+  plt.plot(hours, df['grid_engy'], ".", label='grid_engy')
+
+  plt.legend(); plt.title('Energy');
+  pdf.savefig(); plt.close()
+
+  # Balance
+  plt.plot(hours, df['engy_consumption'], label='engy_consumption')
+  plt.plot(hours, df['engy_supply'], label='engy_supply')
+  plt.plot(hours, df['engy_unused'], label='engy_unused')
+  plt.axhline(y=0, color='b', linestyle='-')
+  plt.legend(); plt.title('Agg. Energy');
+  pdf.savefig(); plt.close()
+
+  plt.plot(hours, df['cum_engy_unused'], label='cum_engy_unused')
+  plt.legend(); plt.title('Cum. Energy Unused: '+\
+                          str(round(max(df['cum_engy_unused']),2)));
+  pdf.savefig(); plt.close()
