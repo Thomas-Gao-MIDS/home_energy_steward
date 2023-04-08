@@ -10,14 +10,15 @@ from ray import tune
 from ray.tune.registry import register_env
 from ray.rllib.agents import ppo
 
-THIS_DIR = os.path.dirname(os.path.abspath(__file__))
+from utils import maybe_rescale_box_space, to_raw, to_scaled
 
-# states, actions, state transition, reward function
+THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 
 class HEnv(gym.Env):
 
     def __init__(self,
-                 scen_id: str = "002"):
+                 scen_id: str = "002",
+                 rescale_spaces: bool = True):
         """
         self.observation_space, self.action_space
         """
@@ -45,11 +46,7 @@ class HEnv(gym.Env):
         self.dev_profile_data = env_config['components'][3]['config']['profile_data']
         self.dev_powers = np.array(self.dev_profile_data['hvac_power'])+np.array(self.dev_profile_data['other_power']).tolist()
 
-        # action space
-        self.act_labels = ['es_action', 'ev_action']
-        act_low = np.array([-1.0, 0.0], dtype=np.float32)
-        act_high = np.array([1.0, 1.0], dtype=np.float32)
-        self.action_space = gym.spaces.Box(low=act_low, high=act_high, dtype=np.float32)
+        self.rescale_spaces = rescale_spaces
 
         # check battery - why always dischrarge immediately after charging? check code!
         # try rescale observation
@@ -61,9 +58,19 @@ class HEnv(gym.Env):
         obs_low = np.zeros((len(self.obs_labels),), dtype=np.float32)
         obs_high = np.array([1.0, 10.0, 10.0,
                              50.0, 1.0, 50.0, 10.0], dtype=np.float32)
-        self.observation_space = gym.spaces.Box(low=obs_low, high=obs_high, dtype=np.float32)
+        self._observation_space = gym.spaces.Box(low=obs_low, high=obs_high, dtype=np.float32)
+        self.observation_space = maybe_rescale_box_space(
+            self._observation_space, rescale = self.rescale_spaces)
         
-        # initial
+        # action space
+        self.act_labels = ['es_action', 'ev_action']
+        act_low = np.array([-1.0, 0.0], dtype=np.float32)
+        act_high = np.array([1.0, 1.0], dtype=np.float32)
+        self._action_space = gym.spaces.Box(low=act_low, high=act_high, dtype=np.float32)
+        self.action_space = maybe_rescale_box_space(
+            self._action_space, rescale=self.rescale_spaces)
+
+        # initialize
         self.seed(seed=1338)
         self.reset()
     
@@ -98,16 +105,17 @@ class HEnv(gym.Env):
     
     def get_obs(self):
 
-        if(self.simulation_step == self.max_episode_steps):
-            obs = np.array([0,0,0,self.es_storage,0,self.ev_energy_required,0], 
-                           dtype=np.float32)
+        raw_obs = np.array([self.grid_costs[self.simulation_step], 
+                        self.pv_powers[self.simulation_step], 
+                        self.dev_powers[self.simulation_step],
+                        self.es_storage, self.get_ev_in(), self.ev_energy_required,
+                        max(self.pv_powers[self.simulation_step]-self.dev_powers[self.simulation_step],0)], 
+                        dtype=np.float32)
+        
+        if self.rescale_spaces:
+            obs = to_scaled(raw_obs, self._observation_space.low, self._observation_space.high)
         else:
-            obs = np.array([self.grid_costs[self.simulation_step], 
-                            self.pv_powers[self.simulation_step], 
-                            self.dev_powers[self.simulation_step],
-                            self.es_storage, self.get_ev_in(), self.ev_energy_required,
-                            max(self.pv_powers[self.simulation_step]-self.dev_powers[self.simulation_step],0)], 
-                            dtype=np.float32)
+            obs = raw_obs
         
         return obs
 
@@ -129,6 +137,9 @@ class HEnv(gym.Env):
             
         """
         # Actions
+        if self.rescale_spaces:
+            action = to_raw(action, self._action_space.low, self._action_space.high)
+
         es_action = action[0] # <0 ~ supply thru discharge; >0 ~ charge 
         es_action = max(min(es_action, 1), -1)
         ev_action = action[1]
@@ -136,7 +147,7 @@ class HEnv(gym.Env):
 
         pw_to_engy = self.minutes_per_step / 60
 
-        # Energy Consumption: +
+        # Energy Consumption (+)
         dev_engy = self.dev_powers[self.simulation_step] * pw_to_engy
         
         ev_in = self.get_ev_in()
@@ -152,7 +163,7 @@ class HEnv(gym.Env):
 
         engy_consumption = dev_engy + ev_engy + es_engy
 
-        # Energy Supply: -
+        # Energy Supply (-)
         pv_engy = - self.pv_powers[self.simulation_step] * pw_to_engy
         
         if es_action < 0: # supply thru discharge
@@ -162,6 +173,7 @@ class HEnv(gym.Env):
 
         engy_supply = pv_engy + es_engy
 
+        # Net Energy
         net_engy = engy_consumption + engy_supply
         if net_engy >= 0: 
             engy_unused = 0

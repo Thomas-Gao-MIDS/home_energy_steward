@@ -36,7 +36,7 @@ def main ():
     config["rollout_fragment_length"] = 288
     config["train_batch_size"] = 288 * 16
     config['lr_schedule'] = [[0, 1e-3],[100*288,1e-4]]
-    config['entropy_coeff'] = 0.01  # entropy regularization
+    config['entropy_coeff'] = 0.03  # entropy regularization
     config['batch_mode'] = "complete_episodes"
     agent = ppo.PPOTrainer(config, env=select_env)
 
