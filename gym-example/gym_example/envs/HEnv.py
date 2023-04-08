@@ -54,7 +54,7 @@ class HEnv(gym.Env):
         # for generalization, introduce weather, temperature, day
         # pv_excess is max(pv_power - dev_power, 0), for signaling es_action to charge
         self.obs_labels = ['grid_cost', 'pv_power', 'dev_power',
-                           'es_charge', 'ev_in', 'ev_energy_required', 'pv_excess']
+                           'es_storage', 'ev_in', 'ev_energy_required', 'pv_excess']
         obs_low = np.zeros((len(self.obs_labels),), dtype=np.float32)
         obs_high = np.array([1.0, 10.0, 10.0,
                              50.0, 1.0, 50.0, 10.0], dtype=np.float32)
