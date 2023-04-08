@@ -13,7 +13,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 
 def main ():
 
-    n_iter = 200
+    n_iter = 100
 
     # init directory in which to save checkpoints
     chkpt_root = "tmp/exa"
@@ -31,13 +31,12 @@ def main ():
     register_env(select_env, lambda config: HEnv())
 
     # configure the environment and create agent
-    # entropy_regularization, ent_coef 0.01
     config = ppo.DEFAULT_CONFIG.copy()
     config["log_level"] = "WARN"
     config["rollout_fragment_length"] = 288
     config["train_batch_size"] = 288 * 16
-    config['lr_schedule'] = [[0, 1e-3],[200*288,1e-4]]
-    config['entropy_coeff'] = 0.01
+    config['lr_schedule'] = [[0, 1e-3],[100*288,1e-4]]
+    config['entropy_coeff'] = 0.01  # entropy regularization
     config['batch_mode'] = "complete_episodes"
     agent = ppo.PPOTrainer(config, env=select_env)
 

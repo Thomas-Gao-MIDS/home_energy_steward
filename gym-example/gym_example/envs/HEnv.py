@@ -51,14 +51,16 @@ class HEnv(gym.Env):
         act_high = np.array([1.0, 1.0], dtype=np.float32)
         self.action_space = gym.spaces.Box(low=act_low, high=act_high, dtype=np.float32)
 
-# commit code, implement reset to change scenario, entropy_coeff
-        # observation space
+        # check battery - why always dischrarge immediately after charging? check code!
+        # try rescale observation
+        # implement reset to change scenario, entropy_coeff
         # for generalization, introduce weather, temperature, day
+        # pv_excess is max(pv_power - dev_power, 0), for signaling es_action to charge
         self.obs_labels = ['grid_cost', 'pv_power', 'dev_power',
-                           'es_charge', 'ev_in', 'ev_energy_required']
+                           'es_charge', 'ev_in', 'ev_energy_required', 'pv_excess']
         obs_low = np.zeros((len(self.obs_labels),), dtype=np.float32)
-        obs_high = np.array([max(self.grid_costs), max(self.pv_powers), max(self.dev_powers),
-                             self.es_range[1], 1.0, self.ev_energy_required], dtype=np.float32)
+        obs_high = np.array([1.0, 10.0, 10.0,
+                             50.0, 1.0, 50.0, 10.0], dtype=np.float32)
         self.observation_space = gym.spaces.Box(low=obs_low, high=obs_high, dtype=np.float32)
         
         # initial
@@ -97,13 +99,14 @@ class HEnv(gym.Env):
     def get_obs(self):
 
         if(self.simulation_step == self.max_episode_steps):
-            obs = np.array([0,0,0,self.es_storage,0,self.ev_energy_required], 
+            obs = np.array([0,0,0,self.es_storage,0,self.ev_energy_required,0], 
                            dtype=np.float32)
         else:
             obs = np.array([self.grid_costs[self.simulation_step], 
                             self.pv_powers[self.simulation_step], 
                             self.dev_powers[self.simulation_step],
-                            self.es_storage, self.get_ev_in(), self.ev_energy_required], 
+                            self.es_storage, self.get_ev_in(), self.ev_energy_required,
+                            max(self.pv_powers[self.simulation_step]-self.dev_powers[self.simulation_step],0)], 
                             dtype=np.float32)
         
         return obs

@@ -11,7 +11,7 @@ import pandas as pd
 
 def main ():
  
-    model_iter = '200'
+    model_iter = '100'
     scen_id = '001'
 
     # start Ray -- add `local_mode=True` here for debugging
@@ -61,8 +61,10 @@ def main ():
         sum_reward += reward
         
         timestamps.append(env.timestamps[step])
-        es_action.append(max(min(action[0], 1),-1))
-        ev_action.append(max(min(action[1], 1), 0))
+        es_action.append(action[0])
+        ev_action.append(action[1])
+        #es_action.append(max(min(action[0], 1),-1))
+        #ev_action.append(max(min(action[1], 1), 0))
         pv_engy.append(env.pv_engy)
         dev_engy.append(env.dev_engy)
         es_engy.append(env.es_engy)
