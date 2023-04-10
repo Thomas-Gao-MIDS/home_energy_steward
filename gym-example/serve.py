@@ -11,7 +11,7 @@ import pandas as pd
 
 def main ():
  
-    model_iter = '600'
+    model_iter = '300'
     scen_id = '001'
 
     # start Ray -- add `local_mode=True` here for debugging
@@ -27,9 +27,6 @@ def main ():
     config["rollout_fragment_length"] = 288
     config["train_batch_size"] = 288 * 16
     config['batch_mode'] = "complete_episodes"
-    config['entropy_coeff'] = 0
-    # config['clip_actions'] = True # seems useless
-    # config['explore'] = True # true is default value. false makes actions weird.
     agent = ppo.PPOTrainer(config, env=select_env)
 
     chkpt_file = 'tmp/exa/checkpoint_000'+model_iter+'/checkpoint-'+model_iter
@@ -68,10 +65,10 @@ def main ():
         sum_reward += reward
         
         timestamps.append(env.timestamps[step])
-        #es_action.append(action[0])
-        #ev_action.append(action[1])
-        es_action.append(max(min(action[0], 1),-1))
-        ev_action.append(max(min(action[1], 1), 0))
+        #es_action.append(max(min(action[0], 1),-1))
+        #ev_action.append(max(min(action[1], 1), 0))
+        es_action.append(env.es_action_last)
+        ev_action.append(env.ev_action_last)
         pv_engy.append(env.pv_engy)
         dev_engy.append(env.dev_engy)
         es_engy.append(env.es_engy)

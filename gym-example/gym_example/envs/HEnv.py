@@ -17,7 +17,7 @@ THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 class HEnv(gym.Env):
 
     def __init__(self,
-                 scen_id: str = "001",
+                 scen_id: str = "002",
                  # rescale_spaces doesn't seem to be working correctly. ev_action got messed up.
                  rescale_spaces: bool = False):
         """
@@ -48,14 +48,17 @@ class HEnv(gym.Env):
         self.dev_powers = np.array(self.dev_profile_data['hvac_power'])+np.array(self.dev_profile_data['other_power']).tolist()
 
         self.rescale_spaces = rescale_spaces
+        self.es_action_last = 0
+        self.ev_action_last = 0
+        self.cum_engy_unused = 0
 
-        # check battery - why always dischrarge immediately after charging? check code!
-        # pv_excess is max(pv_power - dev_power, 0), for signaling es_action to charge
         self.obs_labels = ['grid_cost', 'pv_power', 'dev_power',
-                           'es_storage', 'ev_in', 'ev_energy_required', 'pv_excess']
+                           'es_storage', 'ev_in', 'ev_energy_required', 
+                           'pv_excess', 'es_action_last', 'ev_action_last']
         obs_low = np.zeros((len(self.obs_labels),), dtype=np.float32)
+        obs_low = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -1.0, 0.0])
         obs_high = np.array([1.0, 10.0, 10.0,
-                             50.0, 1.0, 50.0, 10.0], dtype=np.float32)
+                             50.0, 1.0, 50.0, 10.0, 1.0, 1.0], dtype=np.float32)
         self._observation_space = gym.spaces.Box(low=obs_low, high=obs_high, dtype=np.float32)
         self.observation_space = maybe_rescale_box_space(
             self._observation_space, rescale = self.rescale_spaces)
@@ -99,6 +102,8 @@ class HEnv(gym.Env):
         self.engy_unused = 0
         self.ecost = 0
         self.reward = 0
+        self.es_action_last = 0
+        self.ev_action_last = 0
         
         return self.current_obs
     
@@ -108,7 +113,9 @@ class HEnv(gym.Env):
                         self.pv_powers[self.simulation_step], 
                         self.dev_powers[self.simulation_step],
                         self.es_storage, self.get_ev_in(), self.ev_energy_required,
-                        max(self.pv_powers[self.simulation_step]-self.dev_powers[self.simulation_step],0)], 
+                        max(self.pv_powers[self.simulation_step]-self.dev_powers[self.simulation_step],0), 
+                        self.es_action_last, 
+                        self.ev_action_last],
                         dtype=np.float32)
         
         if self.rescale_spaces:
@@ -122,18 +129,6 @@ class HEnv(gym.Env):
         """
         Performs transition step
         Return next observation, reward, done, additional info
-        Issue: 
-            at training, es does not learn to charge from unused solar
-                seems difficult to learn. how to fix?
-                * try different algos
-            at inference, es & ev do not charge at all
-                * get in-sample results out using callback
-                why & how to fix?
-                * train multiple scenarios
-        Next Steps:
-            Mult scenarios
-            Baseline check es_initial charge & es_efficiency
-            
         """
         # Actions
         if self.rescale_spaces:
@@ -169,6 +164,7 @@ class HEnv(gym.Env):
         if es_action < 0: # supply thru discharge
             es_engy_s = es_action * self.es_max_power * pw_to_engy
             es_engy_s = -min((self.es_storage-self.es_range[0]) * self.es_discharge_efficiency, -es_engy_s)
+            es_engy_s = -min(-es_engy_s, engy_consumption+pv_engy) # supply depends on contemperaneous energy. clip extra supply
             self.es_storage += es_engy_s / self.es_discharge_efficiency
 
         engy_supply = pv_engy + es_engy_s
@@ -199,15 +195,16 @@ class HEnv(gym.Env):
         self.engy_supply = engy_supply
         self.engy_unused = engy_unused
         self.ecost = ecost
+        self.es_action_last = self.es_engy / (self.es_max_power * pw_to_engy)
+        self.ev_action_last = self.ev_engy / (self.ev_max_power * pw_to_engy)
 
         # Compute done & next obs
         done = False
         if self.simulation_step+1 == self.max_episode_steps:
             done = True
             self.reward = - self.cum_ecost - self.ev_energy_required**2
-            # self.reward -= 0.5*self.cum_energy_unused**2
             
-            print("ecost:", round(self.cum_ecost), 
+            print("ecost:", round(self.cum_ecost,1), 
                   "| ev_required (0):", round(self.ev_energy_required), 
                   "| engy_unused (0):", round(self.cum_engy_unused),
                   "| es_storage (1)", round(self.es_storage))
@@ -238,7 +235,7 @@ if __name__ == "__main__":
     henv = HEnv(scen_id='001')
     for _ in range(1):
         obs = henv.reset(rand=False)
-        action = [0, 0]
+        action = [1, 0.5]
         print(action)
         while True:
             #action = henv.action_space.sample()
