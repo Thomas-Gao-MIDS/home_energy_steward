@@ -17,8 +17,9 @@ THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 class HEnv(gym.Env):
 
     def __init__(self,
-                 scen_id: str = "002",
-                 rescale_spaces: bool = True):
+                 scen_id: str = "001",
+                 # rescale_spaces doesn't seem to be working correctly. ev_action got messed up.
+                 rescale_spaces: bool = False):
         """
         self.observation_space, self.action_space
         """
@@ -49,9 +50,6 @@ class HEnv(gym.Env):
         self.rescale_spaces = rescale_spaces
 
         # check battery - why always dischrarge immediately after charging? check code!
-        # try rescale observation
-        # implement reset to change scenario, entropy_coeff
-        # for generalization, introduce weather, temperature, day
         # pv_excess is max(pv_power - dev_power, 0), for signaling es_action to charge
         self.obs_labels = ['grid_cost', 'pv_power', 'dev_power',
                            'es_storage', 'ev_in', 'ev_energy_required', 'pv_excess']
@@ -74,7 +72,7 @@ class HEnv(gym.Env):
         self.seed(seed=1338)
         self.reset()
     
-    def reset(self, train=True):
+    def reset(self, rand=False):
         """
         Reset environment to initial state
         Return observation of initial state
@@ -83,7 +81,7 @@ class HEnv(gym.Env):
         self.simulation_step = 0
         self.es_storage = self.env_config['components'][1]['config']['init_storage']
         self.ev_energy_required = self.ev_profile_data['energy_required_kwh'][0]
-        if(train):
+        if(rand):
             self.es_storage += self.np_random.rand()
             self.ev_energy_required -= self.np_random.rand()
 
@@ -100,6 +98,7 @@ class HEnv(gym.Env):
         self.engy_supply = 0
         self.engy_unused = 0
         self.ecost = 0
+        self.reward = 0
         
         return self.current_obs
     
@@ -155,23 +154,24 @@ class HEnv(gym.Env):
         ev_engy = min(ev_engy, self.ev_energy_required)
         self.ev_energy_required -= ev_engy
 
-        es_engy = 0
+        es_engy_c = 0
         if es_action >= 0: # charge
-            es_engy = es_action * self.es_max_power * pw_to_engy
-            es_engy = min(es_engy, (self.es_range[1] - self.es_storage) / self.es_charge_efficiency)
-            self.es_storage += es_engy * self.es_charge_efficiency
+            es_engy_c = es_action * self.es_max_power * pw_to_engy
+            es_engy_c = min(es_engy_c, (self.es_range[1] - self.es_storage) / self.es_charge_efficiency)
+            self.es_storage += es_engy_c * self.es_charge_efficiency
 
-        engy_consumption = dev_engy + ev_engy + es_engy
+        engy_consumption = dev_engy + ev_engy + es_engy_c
 
         # Energy Supply (-)
         pv_engy = - self.pv_powers[self.simulation_step] * pw_to_engy
         
+        es_engy_s = 0
         if es_action < 0: # supply thru discharge
-            es_engy = es_action * self.es_max_power * pw_to_engy
-            es_engy = -min((self.es_storage-self.es_range[0]) * self.es_discharge_efficiency, -es_engy)
-            self.es_storage += es_engy / self.es_discharge_efficiency
+            es_engy_s = es_action * self.es_max_power * pw_to_engy
+            es_engy_s = -min((self.es_storage-self.es_range[0]) * self.es_discharge_efficiency, -es_engy_s)
+            self.es_storage += es_engy_s / self.es_discharge_efficiency
 
-        engy_supply = pv_engy + es_engy
+        engy_supply = pv_engy + es_engy_s
 
         # Net Energy
         net_engy = engy_consumption + engy_supply
@@ -179,7 +179,6 @@ class HEnv(gym.Env):
             engy_unused = 0
             grid_engy = -net_engy
         else: 
-            grid_engy = 0 
             engy_unused = -net_engy
             self.cum_engy_unused += engy_unused
             grid_engy = 0
@@ -193,7 +192,7 @@ class HEnv(gym.Env):
         # Save Variables
         self.pv_engy = pv_engy
         self.dev_engy = dev_engy
-        self.es_engy = es_engy
+        self.es_engy = es_engy_c if es_engy_c >= 0 else es_engy_s
         self.ev_engy = ev_engy
         self.grid_engy = grid_engy
         self.engy_consumption = engy_consumption
@@ -201,27 +200,23 @@ class HEnv(gym.Env):
         self.engy_unused = engy_unused
         self.ecost = ecost
 
-        # Compute reward
-        reward = (-ecost)
-        if self.simulation_step+1 == self.max_episode_steps:
-            reward -= (1.0 * self.ev_energy_required**2)
-            #reward -= (0.1 * self.cum_engy_unused**2)
-            #reward -= (0.05 * self.es_storage**2)
-
         # Compute done & next obs
         done = False
         if self.simulation_step+1 == self.max_episode_steps:
             done = True
+            self.reward = - self.cum_ecost - self.ev_energy_required**2
+            # self.reward -= 0.5*self.cum_energy_unused**2
+            
             print("ecost:", round(self.cum_ecost), 
-                  "| engy_unused (0):", round(self.cum_engy_unused),
                   "| ev_required (0):", round(self.ev_energy_required), 
+                  "| engy_unused (0):", round(self.cum_engy_unused),
                   "| es_storage (1)", round(self.es_storage))
         else:
             self.simulation_step += 1
             next_obs = self.get_obs()
             self.current_obs = next_obs
 
-        return self.current_obs, reward, done, {}
+        return self.current_obs, self.reward, done, {}
 
     def get_ev_in(self):
         
@@ -239,11 +234,14 @@ class HEnv(gym.Env):
 
 
 if __name__ == "__main__":
-    henv = HEnv()
+    
+    henv = HEnv(scen_id='001')
     for _ in range(1):
-        obs = henv.reset()
+        obs = henv.reset(rand=False)
+        action = [0, 0]
+        print(action)
         while True:
-            action = henv.action_space.sample()
+            #action = henv.action_space.sample()
             obs, r, done, _ = henv.step(action)
             if done:
                 break

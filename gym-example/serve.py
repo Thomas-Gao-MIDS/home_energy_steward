@@ -11,7 +11,7 @@ import pandas as pd
 
 def main ():
  
-    model_iter = '100'
+    model_iter = '600'
     scen_id = '001'
 
     # start Ray -- add `local_mode=True` here for debugging
@@ -24,6 +24,12 @@ def main ():
     # configure the environment and create agent
     config = ppo.DEFAULT_CONFIG.copy()
     config["log_level"] = "WARN"
+    config["rollout_fragment_length"] = 288
+    config["train_batch_size"] = 288 * 16
+    config['batch_mode'] = "complete_episodes"
+    config['entropy_coeff'] = 0
+    # config['clip_actions'] = True # seems useless
+    # config['explore'] = True # true is default value. false makes actions weird.
     agent = ppo.PPOTrainer(config, env=select_env)
 
     chkpt_file = 'tmp/exa/checkpoint_000'+model_iter+'/checkpoint-'+model_iter
@@ -32,7 +38,7 @@ def main ():
     agent.restore(chkpt_file)
     env = gym.make(select_env, scen_id=scen_id)
 
-    state = env.reset(train=True)
+    state = env.reset(rand=False)
     sum_reward = 0
     n_step = 288
 
@@ -57,14 +63,15 @@ def main ():
 
     for step in range(n_step):
         action = agent.compute_action(state)
+        #action = [0.2,0.2]
         state, reward, done, info = env.step(action)
         sum_reward += reward
         
         timestamps.append(env.timestamps[step])
-        es_action.append(action[0])
-        ev_action.append(action[1])
-        #es_action.append(max(min(action[0], 1),-1))
-        #ev_action.append(max(min(action[1], 1), 0))
+        #es_action.append(action[0])
+        #ev_action.append(action[1])
+        es_action.append(max(min(action[0], 1),-1))
+        ev_action.append(max(min(action[1], 1), 0))
         pv_engy.append(env.pv_engy)
         dev_engy.append(env.dev_engy)
         es_engy.append(env.es_engy)
@@ -83,7 +90,7 @@ def main ():
         if done == 1:
             # report at the end of each episode
             print("cumulative reward", sum_reward)
-            state = env.reset()
+            state = env.reset(rand=False)
             sum_reward = 0
 
             df = \
