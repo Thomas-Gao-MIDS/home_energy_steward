@@ -2,7 +2,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 
-filename = 'output/test_data.csv'
+scen_id = '001'
+filename = "output/"+scen_id+"_data.csv"
 df = pd.read_csv(filename)
 print(df.columns)
 
@@ -11,7 +12,7 @@ timestamp = pd.to_datetime(df['timestamps'], format='%m-%d-%Y %H:%M:%S')
 hours = (timestamp.dt.hour + timestamp.dt.minute/60).tolist()
 hours = [x if x>=6 else x+24 for x in hours]
 
-with PdfPages('output/test_charts.pdf') as pdf:
+with PdfPages("output/"+scen_id+"_charts.pdf") as pdf:
 
   plt.figure()
 

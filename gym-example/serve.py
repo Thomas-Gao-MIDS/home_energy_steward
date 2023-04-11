@@ -11,8 +11,8 @@ import pandas as pd
 
 def main ():
  
-    model_iter = '300'
     scen_id = '001'
+    model_iter = '100'
 
     # start Ray -- add `local_mode=True` here for debugging
     ray.init(ignore_reinit_error=True, local_mode=True)
@@ -26,10 +26,14 @@ def main ():
     config["log_level"] = "WARN"
     config["rollout_fragment_length"] = 288
     config["train_batch_size"] = 288 * 16
+    config['lr_schedule'] = [[0, 2e-3],[250*288,1e-4]]
     config['batch_mode'] = "complete_episodes"
+    config['seed'] = 123
+
     agent = ppo.PPOTrainer(config, env=select_env)
 
-    chkpt_file = 'tmp/exa/checkpoint_000'+model_iter+'/checkpoint-'+model_iter
+    chkpt_file = 'tmp/exa/'+scen_id+'/checkpoint_000'+model_iter+'/checkpoint-'+model_iter
+    print(chkpt_file)
 
     # apply the trained policy in a rollout
     agent.restore(chkpt_file)
@@ -103,7 +107,9 @@ def main ():
                                   "engy_consumption", "engy_supply", "engy_unused", "cum_engy_unused",
                                   "grid_cost", "ecost", "cum_ecost",
                                   "ev_energy_required", "es_storage"])
-            df.to_csv("output/test_data.csv", index=False)
+            df.to_csv("output/"+scen_id+"_data.csv", index=False)
+
+            
 
 if __name__ == "__main__":
     main()

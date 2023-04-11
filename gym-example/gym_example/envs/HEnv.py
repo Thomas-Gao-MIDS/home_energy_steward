@@ -17,7 +17,7 @@ THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 class HEnv(gym.Env):
 
     def __init__(self,
-                 scen_id: str = "002",
+                 scen_id: str = "001",
                  # rescale_spaces doesn't seem to be working correctly. ev_action got messed up.
                  rescale_spaces: bool = False):
         """
@@ -208,6 +208,8 @@ class HEnv(gym.Env):
                   "| ev_required (0):", round(self.ev_energy_required), 
                   "| engy_unused (0):", round(self.cum_engy_unused),
                   "| es_storage (1)", round(self.es_storage))
+            
+            
         else:
             self.simulation_step += 1
             next_obs = self.get_obs()
@@ -232,10 +234,10 @@ class HEnv(gym.Env):
 
 if __name__ == "__main__":
     
-    henv = HEnv(scen_id='001')
+    henv = HEnv()
     for _ in range(1):
         obs = henv.reset(rand=False)
-        action = [1, 0.5]
+        action = [0, 1]
         print(action)
         while True:
             #action = henv.action_space.sample()
