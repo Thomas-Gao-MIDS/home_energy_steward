@@ -36,7 +36,7 @@ def main ():
     config["log_level"] = "WARN"
     config["rollout_fragment_length"] = 288
     config["train_batch_size"] = 288 * 16
-    config['lr_schedule'] = [[0, 2e-3],[200*288,1e-4]]
+    config['lr_schedule'] = [[0, 2e-3],[250*288,1e-4]]
     config['batch_mode'] = "complete_episodes"
     #config['seed'] = 123
 
