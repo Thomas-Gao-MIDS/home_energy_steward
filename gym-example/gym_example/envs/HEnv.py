@@ -17,7 +17,7 @@ THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 class HEnv(gym.Env):
 
     def __init__(self,
-                 scen_id: str = "001",
+                 scen_id: str = "004",
                  # rescale_spaces doesn't seem to be working correctly. ev_action got messed up.
                  rescale_spaces: bool = False):
         """
@@ -188,7 +188,7 @@ class HEnv(gym.Env):
         # Save Variables
         self.pv_engy = pv_engy
         self.dev_engy = dev_engy
-        self.es_engy = es_engy_c if es_engy_c >= 0 else es_engy_s
+        self.es_engy = es_engy_c if es_engy_c > 0 else es_engy_s
         self.ev_engy = ev_engy
         self.grid_engy = grid_engy
         self.engy_consumption = engy_consumption
@@ -202,12 +202,12 @@ class HEnv(gym.Env):
         done = False
         if self.simulation_step+1 == self.max_episode_steps:
             done = True
-            self.reward = - self.cum_ecost - self.ev_energy_required**2
+            self.reward = - self.cum_ecost - self.ev_energy_required**2 #- self.ev_energy_required
             
             print("ecost:", round(self.cum_ecost,1), 
-                  "| ev_required (0):", round(self.ev_energy_required), 
-                  "| engy_unused (0):", round(self.cum_engy_unused),
-                  "| es_storage (1)", round(self.es_storage))
+                  "| ev_required (0):", round(self.ev_energy_required,1), 
+                  "| engy_unused (0):", round(self.cum_engy_unused,1),
+                  "| es_storage (1)", round(self.es_storage,1))
             
             
         else:
@@ -237,7 +237,7 @@ if __name__ == "__main__":
     henv = HEnv()
     for _ in range(1):
         obs = henv.reset(rand=False)
-        action = [0, 1]
+        action = [-1, 1]
         print(action)
         while True:
             #action = henv.action_space.sample()
