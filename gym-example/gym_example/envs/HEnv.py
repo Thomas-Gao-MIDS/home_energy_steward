@@ -17,7 +17,7 @@ THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 class HEnv(gym.Env):
 
     def __init__(self,
-                 scen_id: str = "001",
+                 scen_id: str = "002",
                  # rescale_spaces doesn't seem to be working correctly. ev_action got messed up.
                  rescale_spaces: bool = False):
         """
@@ -200,8 +200,6 @@ class HEnv(gym.Env):
 
         # Compute done & next obs
         done = False
-        if self.simulation_step+1 == self.max_episode_steps - 24:
-            self.reward = - self.ev_energy_required**2
         if self.simulation_step+1 == self.max_episode_steps:
             done = True
             self.reward = - self.cum_ecost - self.ev_energy_required**2

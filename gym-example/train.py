@@ -11,12 +11,9 @@ import shutil
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 
-from ray import tune
-from ray.tune import Callback
-
 def main ():
 
-    scen_id = '001'
+    scen_id = '002'
     n_iter = 250
 
     # init directory in which to save checkpoints
@@ -28,7 +25,7 @@ def main ():
     #shutil.rmtree(ray_results, ignore_errors=True, onerror=None)
 
     # start Ray -- add `local_mode=True` here for debugging
-    ray.init(ignore_reinit_error=True, local_mode=True)
+    ray.init(ignore_reinit_error=True, local_mode=False)
 
     # register the custom environment
     select_env = "henv"
@@ -55,7 +52,7 @@ def main ():
         print(status.format(n + 1, result["episode_reward_mean"]))
         rewards.append(result["episode_reward_mean"])
         
-        if n_iter - (n+1) <10:
+        if n_iter - (n+1) <5:
             chkpt_file = agent.save(chkpt_root)
             print(chkpt_file)
 

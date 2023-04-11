@@ -29,6 +29,7 @@ with PdfPages("output/"+scen_id+"_charts.pdf") as pdf:
   plt.plot(hours, df['ev_action'], label='ev_action')
   plt.plot(hours, df['ev_engy'], label='ev_engy')
   plt.plot(hours, df['ev_energy_required'], label='ev_energy_required')
+  plt.axhline(y=0, color='b', linestyle='-')
 
   plt.legend(); plt.title('EV');
   pdf.savefig(); plt.close()
@@ -37,6 +38,7 @@ with PdfPages("output/"+scen_id+"_charts.pdf") as pdf:
   plt.plot(hours, df['es_action'], label='es_action')
   plt.plot(hours, df['es_engy'], label='es_engy')
   plt.plot(hours, df['es_storage'], label='es_storge')
+  plt.axhline(y=0, color='b', linestyle='-')
 
   plt.legend(); plt.title('ES');
   pdf.savefig(); plt.close()
