@@ -13,8 +13,8 @@ from matplotlib.backends.backend_pdf import PdfPages
 
 def main ():
 
-    scen_id = '002'
-    n_iter = 250
+    scen_id = '001'
+    n_iter = 300
 
     # init directory in which to save checkpoints
     chkpt_root = "tmp/exa/"+scen_id
@@ -38,7 +38,7 @@ def main ():
     config["train_batch_size"] = 288 * 16
     config['lr_schedule'] = [[0, 2e-3],[200*288,1e-4]]
     config['batch_mode'] = "complete_episodes"
-    config['seed'] = 123
+    #config['seed'] = 123
 
     agent = ppo.PPOTrainer(config, env=select_env)
 

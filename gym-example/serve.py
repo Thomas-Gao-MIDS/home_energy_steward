@@ -12,7 +12,7 @@ import pandas as pd
 def main ():
  
     scen_id = '001'
-    model_iter = '100'
+    model_iter = '300'
 
     # start Ray -- add `local_mode=True` here for debugging
     ray.init(ignore_reinit_error=True, local_mode=True)
@@ -29,6 +29,7 @@ def main ():
     config['lr_schedule'] = [[0, 2e-3],[250*288,1e-4]]
     config['batch_mode'] = "complete_episodes"
     config['seed'] = 123
+
 
     agent = ppo.PPOTrainer(config, env=select_env)
 
@@ -64,7 +65,7 @@ def main ():
 
     for step in range(n_step):
         action = agent.compute_action(state)
-        #action = [0.2,0.2]
+        #print(action)
         state, reward, done, info = env.step(action)
         sum_reward += reward
         

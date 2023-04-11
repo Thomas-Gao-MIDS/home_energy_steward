@@ -17,7 +17,7 @@ THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 class HEnv(gym.Env):
 
     def __init__(self,
-                 scen_id: str = "002",
+                 scen_id: str = "001",
                  # rescale_spaces doesn't seem to be working correctly. ev_action got messed up.
                  rescale_spaces: bool = False):
         """
