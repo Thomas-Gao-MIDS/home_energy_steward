@@ -44,7 +44,8 @@ def main ():
 
     status = "{:2d} reward {:6.2f}"
     rewards = []
-
+    max_episode_reward = -1e10
+    chkpt_file = None
     # train a policy with RLlib using PPO
     for n in range(n_iter):
         result = agent.train()
@@ -52,9 +53,20 @@ def main ():
         print(status.format(n + 1, result["episode_reward_mean"]))
         rewards.append(result["episode_reward_mean"])
         
-        if n_iter - (n+1) <5:
+        #save checkpoint if reward is better than previous
+        if result["episode_reward_mean"] >= max_episode_reward:
+            max_episode_reward = result["episode_reward_mean"]
+            #delete previous checkpoint
+            if chkpt_file:
+                print('removing previous checkpoint file: ', chkpt_file)
+                #remove the folder up to the last '/'
+                os.system('rm -rf '+'/'.join(chkpt_file.split('/')[:-1]))
+            #save new checkpoint
             chkpt_file = agent.save(chkpt_root)
             print(chkpt_file)
+        #if n_iter - (n+1) <10:
+        #    chkpt_file = agent.save(chkpt_root)
+        #    print(chkpt_file)
 
     # examine the trained policy
     policy = agent.get_policy()
