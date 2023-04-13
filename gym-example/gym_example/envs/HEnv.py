@@ -2,6 +2,7 @@ import json
 import os
 import pandas as pd
 import numpy as np
+import random
 
 import gym
 from gym.utils import seeding
@@ -73,6 +74,8 @@ class HEnv(gym.Env):
 
         # initialize
         self.seed(seed=1338)
+        self.my_seed = 123
+        self.rng = random.Random(self.my_seed)
         self.reset()
     
     def reset(self, rand=False):
@@ -80,6 +83,8 @@ class HEnv(gym.Env):
         Reset environment to initial state
         Return observation of initial state
         """
+
+        self.rng.seed(self.my_seed)
 
         self.simulation_step = 0
         self.es_storage = self.env_config['components'][1]['config']['init_storage']
@@ -202,7 +207,7 @@ class HEnv(gym.Env):
         done = False
         if self.simulation_step+1 == self.max_episode_steps:
             done = True
-            self.reward = - self.cum_ecost - self.ev_energy_required**2
+            self.reward = - self.cum_ecost - self.ev_energy_required**2 - self.ev_energy_required
             
             print("ecost:", round(self.cum_ecost,1), 
                   "| ev_required (0):", round(self.ev_energy_required,1), 
